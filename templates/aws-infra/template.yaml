@@ -1,0 +1,127 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: ec2-s3
+  title: Instancia (EC2) + Bucket (S3)
+  description: cria ambos os serviços na região selecionada
+spec:
+  owner: user:guest
+  type: service
+
+  parameters:
+    - title: Preencha o nome do Projeto
+      required:
+        - name
+      properties:
+        name:
+          title: Nome do Projeto
+          type: string
+          description: Nome unico para o seu Projeto
+          ui:autofocus: true
+          ui:options:
+            rows: 5
+    - title: Criação Do Repositorio do Projeto
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Localização do Repo
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+    - title: Configuração Basica EC2
+      required:
+        - instance_name
+        - region
+        - image
+        - instance_type
+      properties:
+        instance_name:
+          title: Nome da Instancia
+          type: string
+          description: O Nome da sua instancia EC2
+          ui:autofocus: true
+        region:
+          title: Região da AWS
+          type: string
+          description: A região onde será feita o deploy
+          enum:
+            - us-east-1
+            - us-west-2
+        image:
+          title: Imagem base para a Instancia
+          type: string
+          description: Imagem Base para a instancia
+          enum:
+            - ami-05c13eab67c5d8861
+        instance_type:
+          title: Tipo da Instancia
+          type: string
+          description: Escolher o Shape da Instancia
+          enum:
+            - t2.small
+            - t3.micro
+    - title: Configuração Basica Bucket
+      required:
+        - bucket_name
+        - action
+      properties:
+        bucket_name:
+          title: Nome do Bucket S3
+          type: string
+          description: o Nome do seu Bucket
+          ui:autofocus: true
+        action:
+          title: Action
+          type: string
+          description: Action to perform (apply/destroy)
+          enum:
+            - apply
+            - destroy
+
+  steps:
+    - id: fetch-base
+      name: Fetch Base
+      action: fetch:template
+      input:
+        url: ./content
+        values:
+          name: ${{ parameters.name }}
+    # This step publishes the contents of the working directory to GitHub.
+    - id: publish
+      name: Publish
+      action: publish:github
+      input:
+        allowedHosts: ['github.com']
+        description: This is ${{ parameters.name }}
+        repoUrl: ${{ parameters.repoUrl }}
+    - id: github-action
+      name: Trigger GitHub Action
+      action: github:actions:dispatch
+      input:
+        workflowId: aws-infra.yml
+        repoUrl: 'github.com?repo=EC2-AWS&owner=victor-ribamar-verzel'
+        branchOrTagName: 'main'
+        workflowInputs:
+          instance_name: ${{ parameters.instance_name }}
+          region: ${{ parameters.region }}
+          action: ${{ parameters.action }}
+          instance_type: ${{ parameters.instance_type }}
+          image: ${{ parameters.image }}
+          bucket_name: ${{ parameters.bucket_name }}
+    - id: register
+      name: Register
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+        
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps['publish'].output.remoteUrl }}
+      - title: Open in catalog
+        icon: catalog
+        entityRef: ${{ steps['register'].output.entityRef }}

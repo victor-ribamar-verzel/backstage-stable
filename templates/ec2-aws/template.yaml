@@ -20,12 +20,12 @@ spec:
           ui:autofocus: true
           ui:options:
             rows: 5
-    - title: Choose a Repo location
+    - title: Criação Do Repositorio do Projeto
       required:
         - repoUrl
       properties:
         repoUrl:
-          title: Repository Location
+          title: Localização do Repo
           type: string
           ui:field: RepoUrlPicker
           ui:options:

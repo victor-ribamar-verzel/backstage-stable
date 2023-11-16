@@ -1,51 +1,51 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  name: eks-cluster
-  title: Node.js App on AWS EKS Cluster
-  description: Deploy a Node.js App on AWS EKS Cluster using Terraform
+  name: s3-bucket
+  title: Bucket S3 na AWS via Terraform
+  description: Cria um Bucket na região selecionada
 spec:
   owner: user:guest
   type: service
 
   parameters:
-    - title: Fill in some steps
+    - title: Preencha o nome do Projeto
       required:
         - name
       properties:
         name:
-          title: App Name
+          title: Nome do Projeto
           type: string
-          description: Unique name for your app
+          description: Nome unico para o seu Projeto
           ui:autofocus: true
           ui:options:
             rows: 5
-    - title: Choose a Repo location
+    - title: Criação Do Repositorio do Projeto
       required:
         - repoUrl
       properties:
         repoUrl:
-          title: Repository Location
+          title: Localização do Repo
           type: string
           ui:field: RepoUrlPicker
           ui:options:
             allowedHosts:
               - github.com
-    - title: Basic EKS Cluster Configuration
+    - title: Configuração Basica Bucket
       required:
-        - clusterName
+        - bucket_name
         - region
         - action
       properties:
-        clusterName:
-          title: Cluster Name
+        bucket_name:
+          title: Nome do Bucket S3
           type: string
-          description: The name of your EKS cluster
+          description: o Nome do seu Bucket
           ui:autofocus: true
         region:
-          title: AWS Region
+          title: Região da AWS
           type: string
-          description: The AWS region where the cluster will be deployed
+          description: A região onde será feita o deploy
           enum:
             - us-east-1
             - us-west-2
@@ -58,23 +58,14 @@ spec:
             - destroy
 
   steps:
-    # This step fetches the Node.js content from ./content
-    - id: fetch-node-content
-      name: Fetch Node.js Content
+    - id: fetch-base
+      name: Fetch Base
       action: fetch:template
       input:
         url: ./content
         values:
           name: ${{ parameters.name }}
-    
-    # This step fetches the base content from your aws-eks repo
-    - id: fetch-eks-base
-      name: Fetch EKS Base
-      action: fetch:plain
-      input:
-        url: 'https://github.com/samgabrail/aws-eks.git'
-          
-    # This step publishes the combined contents of the working directory to GitHub.
+    # This step publishes the contents of the working directory to GitHub.
     - id: publish
       name: Publish
       action: publish:github
@@ -82,33 +73,24 @@ spec:
         allowedHosts: ['github.com']
         description: This is ${{ parameters.name }}
         repoUrl: ${{ parameters.repoUrl }}
-
-    - id: sleep
-      name: Sleep
-      action: roadiehq:utils:sleep
-      input:
-        amount: 60
-    # Start a GitHub Action to build an EKS cluster with Terraform
     - id: github-action
       name: Trigger GitHub Action
       action: github:actions:dispatch
       input:
-        workflowId: manage-eks-cluster.yml
-        repoUrl: ${{ parameters.repoUrl }}
-        branchOrTagName: 'master'
+        workflowId: s3-aws.yml
+        repoUrl: 'github.com?repo=EC2-AWS&owner=victor-ribamar-verzel'
+        branchOrTagName: 'main'
         workflowInputs:
-          clusterName: ${{ parameters.clusterName }}
-          awsRegion: ${{ parameters.region }}
+          bucket_name: ${{ parameters.bucket_name }}
+          region: ${{ parameters.region }}
           action: ${{ parameters.action }}
-    # The final step is to register our new component in the catalog.
     - id: register
       name: Register
       action: catalog:register
       input:
         repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
         catalogInfoPath: '/catalog-info.yaml'
-
-  # Outputs are displayed to the user after a successful execution of the template.
+        
   output:
     links:
       - title: Repository
